@@ -9,7 +9,7 @@ This is a python script which attempts to automate the process of reserving site
 * geckodriver (current release)
 * Firefox (current release)
 
-### Current Use
+### Current Use - This is a really rough script I put together and I don't actually know what I am doing, if it works it works, if it doesn't... yeah that's to be expected.
 * I have updated this script to help automate the campsite reservation process at recreation.gov to help increase the likelyhood of getting a reservation.
 * You will need to hardcode your recreation.gov account info into the checker.ini file.
 * You may also need to adjust the execution time, it is currently set to 8am and I am not sure how this is affected by timezones. Please see line 113 in checker.py.
