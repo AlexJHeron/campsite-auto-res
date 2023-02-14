@@ -1,0 +1,179 @@
+#import modules
+
+import ast
+import configparser
+import time
+import ntplib
+import schedule
+import PySimpleGUI as sg
+import csv
+from datetime import datetime, timedelta
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.firefox.options import Options
+from selenium.common.exceptions import NoSuchElementException 
+
+config = configparser.ConfigParser()
+
+config.read('checker.ini')
+
+RETRIES = int(config.get("common", "retries"))
+USERNAME = config.get("common", "username")
+PASSWORD = config.get("common", "password")
+NUM_RESERVATIONS = int(config.get("common", "num_reservations"))
+
+def import_csv(filename):
+    with open(filename, 'r') as file:
+        reader = csv.reader(file)
+        next(reader) # skip the header row
+        return [row for row in reader]
+
+
+filename = "glacierviewcampground.csv"
+options = import_csv(filename)
+
+numbers = [str(i) for i in range(1, 11)]
+
+layout =[  
+[sg.CalendarButton('Click here to choose check-in date', close_when_date_chosen=True,  target='-IN-', location=(800,600), no_titlebar=False, format='%m/%d/%Y' ), sg.Input(key='-IN-', size=(20,1)), ],
+[sg.Text('How many days would you like to stay for'), sg.Combo(numbers, size=(10, 1), key="number")],
+[sg.Text('Select a campsite:'), sg.Combo(list(map(lambda x: f'{x[0]} - {x[1]}', options)), size=(30, 1), key='option')],
+[sg.Button('START'), sg.Button('CANCEL')]
+]
+
+Window = sg.Window ('Campsite Reservation Tool', layout)
+
+def get_current_time():
+    c = ntplib.NTPClient()
+    response = c.request('time.nist.gov')
+    return response.tx_time
+
+def add_to_cart():
+	print("Executing action at", time.ctime(get_current_time()))
+	elem = WebDriverWait(driver, 3).until(EC.element_to_be_clickable((By.ID, 'add-cart-campsite')))
+	elem.click()
+
+def checksites():
+	site_ready = False
+	num_retries = 0
+
+	# Loop through sites // not needed since running on one campsite at a time
+	for site in SITES:
+
+		url = url_request.format(**site)
+		driver.get(url)
+
+	# Enter username
+	username_field = WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.ID, 'ga-global-nav-log-in-link')))
+	username_field = driver.find_element(By.ID, 'ga-global-nav-log-in-link').click()
+	username_field = driver.find_element(By.ID, 'email')
+	username_field.send_keys(USERNAME);
+
+	# Enter password
+	password_field = driver.find_element(By.ID, 'rec-acct-sign-in-password')
+	password_field.send_keys(PASSWORD);
+	password_field.send_keys(Keys.ENTER);
+
+	scroll_locator = (By.XPATH, "/html/body/div[1]/div/div[4]/div/div[1]/div[2]/div[2]/div/div/div[1]/div/ul/li[1]/button")
+	scroll = WebDriverWait(driver, 3).until(EC.element_to_be_clickable(scroll_locator))
+	scroll.click()
+		
+	while site_ready == False:
+			#error checking for if site is available
+			try:
+				elem = driver.find_element(By.XPATH, '//*[@aria-label="Choose '+ day_of_week+', '+ check_in_date +' as your check-in date. It’s available."]')
+			except NoSuchElementException:		
+				if num_retries < RETRIES:
+					print('Not yet reservable, retrying...')
+					num_retries += 1
+					driver.refresh()
+					scroll_locator = (By.XPATH, "/html/body/div[1]/div/div[4]/div/div[1]/div[2]/div[2]/div/div/div[1]/div/ul/li[1]/button")
+					scroll = WebDriverWait(driver, 3).until(EC.element_to_be_clickable(scroll_locator))
+					scroll.click()
+				else:
+					print('Not yet reservable. Exceeded number of retries.')
+					return False
+			
+			else:
+				site_ready = True
+				#click on check in day
+				elem = WebDriverWait(driver, 3).until(EC.element_to_be_clickable((By.XPATH, '//*[@aria-label="Choose '+ day_of_week+', '+ check_in_date +' as your check-in date. It’s available."]')))	
+				elem.click()
+				
+				#click on check out day
+				elem = WebDriverWait(driver, 3).until(EC.element_to_be_clickable((By.XPATH, '//*[@aria-label="Choose '+ day_of_week2+', '+ check_out_date +' as your check-out date. It’s available."]')))	
+				elem.click()
+				
+				print('Ready to add to cart')
+				#need to edit this to the time you want it to execute the add to cart action, currently set to 8am, not sure how this works with time zone changes.
+				schedule.every().day.at("8:00").do(add_to_cart)
+
+				while True:
+					schedule.run_pending()
+					time.sleep(4)
+
+while True:
+    Event, Values = Window.read()
+    if Event == sg.WIN_CLOSED or Event == 'CANCEL' :
+        break
+    if Event == 'START':
+        date_string = Values["-IN-"]
+        selected_number = int(Values["number"])
+        option = Values['option']
+        for row in options:
+            if f'{row[0]} - {row[1]}' == option:
+                campsite = row[2]
+            #break
+        config['reservation_1'] = {'ARV_DATE': date_string, 'LENGTH_OF_STAY': selected_number, 'sites': [{'site_id': campsite}]}
+        with open('checker.ini', 'w') as configfile:
+            config.write(configfile)
+            
+        for i in range(NUM_RESERVATIONS):
+            count = str(i + 1)
+            options = Options()
+            driver = webdriver.Firefox(options=options)
+            driver.maximize_window()
+            
+            ARV_DATE = config.get("reservation_" + count, "arv_date")
+            LENGTH_OF_STAY = config.get("reservation_" + count, "length_of_stay")
+            SITES = ast.literal_eval(config.get("reservation_" + count, "sites"))
+            
+            LENGTH_OF_STAY =int(LENGTH_OF_STAY)
+            
+            date_in = ARV_DATE
+            date_convert = datetime.strptime(date_in, '%m/%d/%Y')
+            check_in_date = datetime.strftime(date_convert, '%B %-d, %Y')
+            day_of_week = date_convert.strftime('%A')
+            date_convert2 = datetime.strptime(date_in, '%m/%d/%Y')
+            new_date = date_convert2 + timedelta(days=LENGTH_OF_STAY)
+            check_out_date = datetime.strftime(new_date, '%B %-d, %Y')
+            day_of_week2 = new_date.strftime('%A')
+            
+            url_request = 'http://www.recreation.gov/camping/campsites/{site_id}'
+            
+            selected_site = checksites()    
+                
+                
+        break
+
+Window.close()
+
+ ##From old code, not sure how important these preferences are.
+#firefoxProfile = FirefoxProfile()
+#firefoxProfile.set_preference('browser.migration.version', 9001)
+#firefoxProfile.set_preference('permissions.default.image', 2)
+#firefoxProfile.set_preference('dom.ipc.plugins.enabled.libflashplayer.so', 'false')
+
+
+#add to cart at the right time!
+
+
+
+
+
+	
