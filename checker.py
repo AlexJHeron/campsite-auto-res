@@ -7,6 +7,7 @@ import ntplib
 import schedule
 import PySimpleGUI as sg
 import csv
+import sys
 from datetime import datetime, timedelta
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -18,6 +19,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.firefox.options import Options
 from selenium.common.exceptions import NoSuchElementException 
 
+#read checker.ini file
 config = configparser.ConfigParser()
 
 config.read('checker.ini')
@@ -27,6 +29,7 @@ USERNAME = config.get("common", "username")
 PASSWORD = config.get("common", "password")
 NUM_RESERVATIONS = int(config.get("common", "num_reservations"))
 
+#read csv file which should house the list of campsites at the campground
 def import_csv(filename):
     with open(filename, 'r') as file:
         reader = csv.reader(file)
@@ -39,6 +42,7 @@ options = import_csv(filename)
 
 numbers = [str(i) for i in range(1, 11)]
 
+#PySimpleGui 
 layout =[  
 [sg.CalendarButton('Click here to choose check-in date', close_when_date_chosen=True,  target='-IN-', location=(800,600), no_titlebar=False, format='%m/%d/%Y' ), sg.Input(key='-IN-', size=(20,1)), ],
 [sg.Text('How many days would you like to stay for'), sg.Combo(numbers, size=(10, 1), key="number")],
@@ -48,6 +52,7 @@ layout =[
 
 Window = sg.Window ('Campsite Reservation Tool', layout)
 
+#pull time from time.nist.gov which should account for network latency according to their documentation
 def get_current_time():
     c = ntplib.NTPClient()
     response = c.request('time.nist.gov')
@@ -57,6 +62,13 @@ def add_to_cart():
 	print("Executing action at", time.ctime(get_current_time()))
 	elem = WebDriverWait(driver, 3).until(EC.element_to_be_clickable((By.ID, 'add-cart-campsite')))
 	elem.click()
+
+def animate_loading():
+    while True:
+        for i in range(4):
+            sys.stdout.write('\rLoading' + '.' * i)
+            time.sleep(0.5)
+            sys.stdout.flush()
 
 def checksites():
 	site_ready = False
@@ -85,7 +97,7 @@ def checksites():
 		
 	while site_ready == False:
 			#error checking for if site is available
-			try:
+			try: #check to see if your check in date is available
 				elem = driver.find_element(By.XPATH, '//*[@aria-label="Choose '+ day_of_week+', '+ check_in_date +' as your check-in date. It’s available."]')
 			except NoSuchElementException:		
 				if num_retries < RETRIES:
@@ -99,7 +111,7 @@ def checksites():
 					print('Not yet reservable. Exceeded number of retries.')
 					return False
 			
-			else:
+			else: #select check in and check out dates
 				site_ready = True
 				#click on check in day
 				elem = WebDriverWait(driver, 3).until(EC.element_to_be_clickable((By.XPATH, '//*[@aria-label="Choose '+ day_of_week+', '+ check_in_date +' as your check-in date. It’s available."]')))	
@@ -114,7 +126,7 @@ def checksites():
 
 
 
-while True:
+while True: #using PySimpleGui gather information from users and write it to the checker.ini file
 	Event, Values = Window.read()
 	if Event == sg.WIN_CLOSED or Event == 'CANCEL' :
 		break
@@ -130,7 +142,7 @@ while True:
 			config.write(configfile)
 		break	
 Window.close()           
-        
+#this is where the magic happens, get the information submitted via the GUI and make them into useable variables        
 for i in range(NUM_RESERVATIONS):
 	count = str(i + 1)
 	options = Options()
@@ -143,6 +155,7 @@ for i in range(NUM_RESERVATIONS):
 	
 	LENGTH_OF_STAY =int(LENGTH_OF_STAY)
 	
+	#convert check in date to useable format and add number of days of stay to find check out date
 	date_in = ARV_DATE
 	date_convert = datetime.strptime(date_in, '%m/%d/%Y')
 	check_in_date = datetime.strftime(date_convert, '%B %-d, %Y')
@@ -155,21 +168,19 @@ for i in range(NUM_RESERVATIONS):
 	selected_site = checksites()
 	break
 
-
 #add to cart at the right time!
 #currently set to execute action at 8am, might need this to change due to timezone, I have not done extensive testing.
-schedule.every().day.at("08:00").do(add_to_cart)
-print('Waiting')
-while True:
-	schedule.run_pending()
-	time.sleep(1)
-	
+stop_animation = False
+while not stop_animation:
+    animate_loading()
+    schedule.every().day.at("08:00").do(add_to_cart)
+    while True:
+        schedule.run_pending()
+        if schedule.jobs:
+            stop_animation = True
+            break
+        time.sleep(1)
 
- ##From old code, not sure how important these preferences are.
-#firefoxProfile = FirefoxProfile()
-#firefoxProfile.set_preference('browser.migration.version', 9001)
-#firefoxProfile.set_preference('permissions.default.image', 2)
-#firefoxProfile.set_preference('dom.ipc.plugins.enabled.libflashplayer.so', 'false')
 
 
 
