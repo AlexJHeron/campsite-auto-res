@@ -3,7 +3,7 @@
 This is a python script which attempts to automate the process of reserving sites on recreation.gov.  It is especially made for sought-after campsites which have limited booking windows.
 
 ### Dependencies
-* OS X or *nix variant
+* OS X
 * Python
 * Selenium (current release)
 * geckodriver (current release)
