@@ -1,4 +1,4 @@
-## campsite-checker
+## campsite-auto-res
 
 This is a python script which attempts to automate the process of reserving sites on recreation.gov.  It is especially made for sought-after campsites which have limited booking windows.
 
