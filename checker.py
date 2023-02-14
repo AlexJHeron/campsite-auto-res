@@ -110,68 +110,66 @@ def checksites():
 				elem.click()
 				
 				print('Ready to add to cart')
-				#need to edit this to the time you want it to execute the add to cart action, currently set to 8am, not sure how this works with time zone changes.
-				schedule.every().day.at("8:00").do(add_to_cart)
+				
 
-				while True:
-					schedule.run_pending()
-					time.sleep(4)
+
 
 while True:
-    Event, Values = Window.read()
-    if Event == sg.WIN_CLOSED or Event == 'CANCEL' :
-        break
-    if Event == 'START':
-        date_string = Values["-IN-"]
-        selected_number = int(Values["number"])
-        option = Values['option']
-        for row in options:
-            if f'{row[0]} - {row[1]}' == option:
-                campsite = row[2]
-            #break
-        config['reservation_1'] = {'ARV_DATE': date_string, 'LENGTH_OF_STAY': selected_number, 'sites': [{'site_id': campsite}]}
-        with open('checker.ini', 'w') as configfile:
-            config.write(configfile)
-            
-        for i in range(NUM_RESERVATIONS):
-            count = str(i + 1)
-            options = Options()
-            driver = webdriver.Firefox(options=options)
-            driver.maximize_window()
-            
-            ARV_DATE = config.get("reservation_" + count, "arv_date")
-            LENGTH_OF_STAY = config.get("reservation_" + count, "length_of_stay")
-            SITES = ast.literal_eval(config.get("reservation_" + count, "sites"))
-            
-            LENGTH_OF_STAY =int(LENGTH_OF_STAY)
-            
-            date_in = ARV_DATE
-            date_convert = datetime.strptime(date_in, '%m/%d/%Y')
-            check_in_date = datetime.strftime(date_convert, '%B %-d, %Y')
-            day_of_week = date_convert.strftime('%A')
-            date_convert2 = datetime.strptime(date_in, '%m/%d/%Y')
-            new_date = date_convert2 + timedelta(days=LENGTH_OF_STAY)
-            check_out_date = datetime.strftime(new_date, '%B %-d, %Y')
-            day_of_week2 = new_date.strftime('%A')
-            
-            url_request = 'http://www.recreation.gov/camping/campsites/{site_id}'
-            
-            selected_site = checksites()    
-                
-                
-        break
+	Event, Values = Window.read()
+	if Event == sg.WIN_CLOSED or Event == 'CANCEL' :
+		break
+	if Event == 'START':
+		date_string = Values["-IN-"]
+		selected_number = int(Values["number"])
+		option = Values['option']
+		for row in options:
+			if f'{row[0]} - {row[1]}' == option:
+				campsite = row[2]
+				config['reservation_1'] = {'ARV_DATE': date_string, 'LENGTH_OF_STAY': selected_number, 'sites': [{'site_id': campsite}]}
+		with open('checker.ini', 'w') as configfile:
+			config.write(configfile)
+		break	
+Window.close()           
+        
+for i in range(NUM_RESERVATIONS):
+	count = str(i + 1)
+	options = Options()
+	driver = webdriver.Firefox(options=options)
+	driver.maximize_window()
+	
+	ARV_DATE = config.get("reservation_" + count, "arv_date")
+	LENGTH_OF_STAY = config.get("reservation_" + count, "length_of_stay")
+	SITES = ast.literal_eval(config.get("reservation_" + count, "sites"))
+	
+	LENGTH_OF_STAY =int(LENGTH_OF_STAY)
+	
+	date_in = ARV_DATE
+	date_convert = datetime.strptime(date_in, '%m/%d/%Y')
+	check_in_date = datetime.strftime(date_convert, '%B %-d, %Y')
+	day_of_week = date_convert.strftime('%A')
+	date_convert2 = datetime.strptime(date_in, '%m/%d/%Y')
+	new_date = date_convert2 + timedelta(days=LENGTH_OF_STAY)
+	check_out_date = datetime.strftime(new_date, '%B %-d, %Y')
+	day_of_week2 = new_date.strftime('%A')
+	url_request = 'http://www.recreation.gov/camping/campsites/{site_id}'
+	selected_site = checksites()
+	break
 
-Window.close()
+
+#add to cart at the right time!
+#currently set to execute action at 8am, might need this to change due to timezone, I have not done extensive testing.
+schedule.every().day.at("08:00").do(add_to_cart)
+print('Waiting')
+while True:
+	schedule.run_pending()
+	time.sleep(1)
+	
 
  ##From old code, not sure how important these preferences are.
 #firefoxProfile = FirefoxProfile()
 #firefoxProfile.set_preference('browser.migration.version', 9001)
 #firefoxProfile.set_preference('permissions.default.image', 2)
 #firefoxProfile.set_preference('dom.ipc.plugins.enabled.libflashplayer.so', 'false')
-
-
-#add to cart at the right time!
-
 
 
 
