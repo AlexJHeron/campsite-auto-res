@@ -140,46 +140,81 @@ while True: #using PySimpleGui gather information from users and write it to the
 				config['reservation_1'] = {'ARV_DATE': date_string, 'LENGTH_OF_STAY': selected_number, 'sites': [{'site_id': campsite}]}
 		with open('checker.ini', 'w') as configfile:
 			config.write(configfile)
+
+	for i in range(NUM_RESERVATIONS):
+		count = str(i + 1)
+		options = Options()
+		driver = webdriver.Firefox(options=options)
+		driver.maximize_window()
+	
+		ARV_DATE = config.get("reservation_" + count, "arv_date")
+		LENGTH_OF_STAY = config.get("reservation_" + count, "length_of_stay")
+		SITES = ast.literal_eval(config.get("reservation_" + count, "sites"))
+	
+		LENGTH_OF_STAY =int(LENGTH_OF_STAY)
+	
+		#convert check in date to useable format and add number of days of stay to find check out date
+		date_in = ARV_DATE
+		date_convert = datetime.strptime(date_in, '%m/%d/%Y')
+		check_in_date = datetime.strftime(date_convert, '%B %-d, %Y')
+		day_of_week = date_convert.strftime('%A')
+		date_convert2 = datetime.strptime(date_in, '%m/%d/%Y')
+		new_date = date_convert2 + timedelta(days=LENGTH_OF_STAY)
+		check_out_date = datetime.strftime(new_date, '%B %-d, %Y')
+		day_of_week2 = new_date.strftime('%A')
+		url_request = 'http://www.recreation.gov/camping/campsites/{site_id}'
+		selected_site = checksites()
+
+		stop_animation = False
+		while not stop_animation:
+			animate_loading()
+			schedule.every().day.at("08:00").do(add_to_cart)
+			while True:
+				schedule.run_pending()
+				if schedule.jobs:
+					stop_animation = True
+					break
+				time.sleep(1)
 		break	
 Window.close()           
 #this is where the magic happens, get the information submitted via the GUI and make them into useable variables        
-for i in range(NUM_RESERVATIONS):
-	count = str(i + 1)
-	options = Options()
-	driver = webdriver.Firefox(options=options)
-	driver.maximize_window()
-	
-	ARV_DATE = config.get("reservation_" + count, "arv_date")
-	LENGTH_OF_STAY = config.get("reservation_" + count, "length_of_stay")
-	SITES = ast.literal_eval(config.get("reservation_" + count, "sites"))
-	
-	LENGTH_OF_STAY =int(LENGTH_OF_STAY)
-	
-	#convert check in date to useable format and add number of days of stay to find check out date
-	date_in = ARV_DATE
-	date_convert = datetime.strptime(date_in, '%m/%d/%Y')
-	check_in_date = datetime.strftime(date_convert, '%B %-d, %Y')
-	day_of_week = date_convert.strftime('%A')
-	date_convert2 = datetime.strptime(date_in, '%m/%d/%Y')
-	new_date = date_convert2 + timedelta(days=LENGTH_OF_STAY)
-	check_out_date = datetime.strftime(new_date, '%B %-d, %Y')
-	day_of_week2 = new_date.strftime('%A')
-	url_request = 'http://www.recreation.gov/camping/campsites/{site_id}'
-	selected_site = checksites()
-	break
+#for i in range(NUM_RESERVATIONS):
+#	count = str(i + 1)
+#	options = Options()
+#	driver = webdriver.Firefox(options=options)
+#	driver.maximize_window()
+#	
+#	ARV_DATE = config.get("reservation_" + count, "arv_date")
+#	LENGTH_OF_STAY = config.get("reservation_" + count, "length_of_stay")
+#	SITES = ast.literal_eval(config.get("reservation_" + count, "sites"))
+#	
+#	LENGTH_OF_STAY =int(LENGTH_OF_STAY)
+#	
+#	#convert check in date to useable format and add number of days of stay to find check out date
+#	date_in = ARV_DATE
+#	date_convert = datetime.strptime(date_in, '%m/%d/%Y')
+#	check_in_date = datetime.strftime(date_convert, '%B %-d, %Y')
+#	day_of_week = date_convert.strftime('%A')
+#	date_convert2 = datetime.strptime(date_in, '%m/%d/%Y')
+#	new_date = date_convert2 + timedelta(days=LENGTH_OF_STAY)
+#	check_out_date = datetime.strftime(new_date, '%B %-d, %Y')
+#	day_of_week2 = new_date.strftime('%A')
+#	url_request = 'http://www.recreation.gov/camping/campsites/{site_id}'
+#	selected_site = checksites()
+#	break
 
 #add to cart at the right time!
 #currently set to execute action at 8am, might need this to change due to timezone, I have not done extensive testing.
-stop_animation = False
-while not stop_animation:
-    animate_loading()
-    schedule.every().day.at("08:00").do(add_to_cart)
-    while True:
-        schedule.run_pending()
-        if schedule.jobs:
-            stop_animation = True
-            break
-        time.sleep(1)
+#stop_animation = False
+#while not stop_animation:
+#    animate_loading()
+#    schedule.every().day.at("08:00").do(add_to_cart)
+#    while True:
+#        schedule.run_pending()
+#        if schedule.jobs:
+#            stop_animation = True
+#            break
+#        time.sleep(1)
 
 
 
